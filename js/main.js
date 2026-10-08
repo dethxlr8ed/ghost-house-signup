@@ -1,5 +1,5 @@
 import { BOOTHS, DAYS, boothById, loadLayout, loadPrivate, loadRelease, lockFor, fmtOpen, daysTag, shiftLabel, weekdayName, monthName } from './data.js';
-import { createStore } from './store.js';
+import { createStore, adminKeyStore } from './store.js';
 import { renderCalendar, renderMaster, spotView } from './calendar.js';
 import { renderOpen, buildShiftBlock, openIds, countUnlockedOpen } from './openview.js';
 import { selection } from './select.js';
@@ -259,6 +259,19 @@ window.addEventListener('hashchange', () => {
 });
 compactMq.addEventListener('change', render);
 
+async function adminLogin() {
+  for (let i = 0; i < 3; i++) {
+    if (!adminKeyStore.get()) {
+      const key = window.prompt('Admin key');
+      if (!key) return;
+      adminKeyStore.set(key.trim());
+    }
+    if (await store.loadAdmin()) return;
+    adminKeyStore.set('');
+    toast('That key did not work');
+  }
+}
+
 async function start() {
   if (admin) document.body.classList.add('admin');
   const [booths, rel, people] = await Promise.all([loadLayout(), loadRelease(), admin ? loadPrivate() : {}]);
@@ -268,9 +281,14 @@ async function start() {
   for (const days of Object.values(booths))
     for (const day of Object.values(days))
       for (const shift of day) for (const sp of shift.spots) if (sp.k === 'kid' && sp.t) taken.add(sp.id);
-  store = createStore({ taken, people });
+  store = await createStore({ taken, people });
+  if (admin && store.remote) await adminLogin();
   store.subscribe(render);
   selection.subscribe(render);
+  const poll = () => document.visibilityState === 'visible' && store.refresh();
+  setInterval(poll, 20000);
+  document.addEventListener('visibilitychange', poll);
+  window.addEventListener('focus', poll);
   route = parseRoute();
   render();
 }

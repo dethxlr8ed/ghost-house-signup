@@ -1,7 +1,18 @@
 {
   "name": "ghost-house-signup",
+  "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "assets": {
-    "directory": "."
-  }
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ghost-house-2026",
+      "database_id": "4f041745-508b-4df0-afb6-b4c1e8314c96"
+    }
+  ],
+  "observability": { "enabled": true }
 }

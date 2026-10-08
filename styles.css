@@ -732,3 +732,5 @@ body.admin .brand p::after { content: ' · admin'; color: var(--hl); }
 .minor-box { margin: 0 0 12px; padding: 12px 12px 4px; background: #f4f1ea; border-radius: 12px; }
 .minor-box .liab { margin: 0 0 8px; }
 .minor-title { display: block; margin-bottom: 8px; font-size: 13px; color: #4b4259; }
+
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

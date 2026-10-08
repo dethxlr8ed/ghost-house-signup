@@ -142,6 +142,12 @@ export function openSignup(ctx) {
     if (keep.age === 'minor') box.required = true;
 
     form.append(field('School or group', 'school', { auto: 'organization' }));
+    const hp = el('label', 'hp');
+    hp.append(el('span', '', 'Website'));
+    const hpInput = el('input');
+    Object.assign(hpInput, { type: 'text', name: 'website', tabIndex: -1, autocomplete: 'off' });
+    hp.append(hpInput);
+    form.append(hp);
     const msg = el('p', 'msg');
     msg.setAttribute('role', 'alert');
     form.append(msg);
@@ -175,12 +181,18 @@ export function openSignup(ctx) {
         person.emergencyName = (data.ec_name || '').trim();
         person.emergencyPhone = (data.ec_phone || '').trim();
       }
-      const done = [];
-      const lost = [];
-      for (const item of items) {
-        const res = await ctx.store.claim(item.id, person);
-        (res.ok ? done : lost).push(item);
+      person.website = (data.website || '').trim();
+      let result;
+      try {
+        result = await ctx.store.claimMany(items.map((i) => i.id), person);
+      } catch (err) {
+        msg.textContent = err.message || 'Could not reach the server. Please try again.';
+        submit.disabled = false;
+        return;
       }
+      const doneIds = new Set(result.done);
+      const done = items.filter((i) => doneIds.has(i.id));
+      const lost = items.filter((i) => !doneIds.has(i.id));
       form.dataset.mode = 'result';
       for (const item of items) ctx.selection.remove(item.id);
       showResult(ctx, dlg, form, person, done, lost);
@@ -206,7 +218,7 @@ function showResult(ctx, dlg, form, person, done, lost) {
     form.append(el('h3', '', 'Those spots were just taken'));
   }
   if (lost.length) {
-    form.append(el('p', 'msg', 'Sorry, these were taken a moment ago. Please pick another:'));
+    form.append(el('p', 'msg', 'Sorry, these could not be booked (they may have just been taken). Please pick another:'));
     form.append(shiftList(ctx, lost, false));
   }
   if (person.minor) {
@@ -259,8 +271,12 @@ export function openAdminSpot(ctx, v) {
   if (taken) {
     const free = button('Free spot', 'btn danger');
     free.addEventListener('click', async () => {
-      await ctx.store.set(v.id, null);
-      dlg.close();
+      try {
+        await ctx.store.set(v.id, null);
+        dlg.close();
+      } catch {
+        free.textContent = 'Failed, try again';
+      }
     });
     actions.append(free);
   }
@@ -270,8 +286,12 @@ export function openAdminSpot(ctx, v) {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(form));
     const name = data.name.trim();
-    await ctx.store.set(v.id, name || data.phone.trim() ? { name: name || 'Filled', phone: data.phone.trim() } : { name: 'Filled' });
-    dlg.close();
+    try {
+      await ctx.store.set(v.id, name || data.phone.trim() ? { name: name || 'Filled', phone: data.phone.trim() } : { name: 'Filled' });
+      dlg.close();
+    } catch {
+      form.querySelector('.actions button[type=submit]').textContent = 'Failed, try again';
+    }
   };
   dlg.showModal();
 }
