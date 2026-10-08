@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#150e24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex">
+<meta name="description" content="Sign up for volunteer shifts at the Candlelighters Ghost House Games.">
+<title>Ghost House Games 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Creepster&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Ghost House Games</h1>
+      <p>Candlelighters &middot; Oct 10 &ndash; 30 &middot; Volunteer shifts</p>
+    </div>
+    <button id="share" class="icon-btn" type="button" aria-label="Share this page">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/></svg>
+      <span>Share</span>
+    </button>
+  </header>
+
+  <nav class="booths" aria-label="Game booths">
+    <div id="booths" class="booths-scroll"></div>
+  </nav>
+  <div id="strip" class="strip"></div>
+
+  <main id="view" class="view"></main>
+</div>
+
+<div id="tray" class="tray" hidden>
+  <button id="tray-clear" class="tray-clear" type="button">Clear</button>
+  <span id="tray-text" class="tray-text"></span>
+  <button id="tray-go" class="btn primary" type="button">Continue</button>
+</div>
+
+<dialog id="spot" class="modal"><form id="spot-form" method="dialog"></form></dialog>
+<dialog id="day" class="modal sheet">
+  <button id="day-close" class="sheet-x" type="button" aria-label="Close">&times;</button>
+  <div id="day-body"></div>
+</dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
