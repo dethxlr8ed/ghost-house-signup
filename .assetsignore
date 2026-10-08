@@ -3,3 +3,5 @@ wrangler.jsonc
 README.md
 .nojekyll
 .git
+.wrangler
+node_modules
