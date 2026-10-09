@@ -763,3 +763,48 @@ dialog.polyfill {
   box-shadow: 0 0 0 100vmax rgba(14, 8, 24, 0.66);
 }
 dialog.polyfill.sheet { margin: auto auto 0; }
+
+/* admin roster */
+.roster { flex: 1; padding: 4px 2px 24px; color: #f1ecf9; }
+.rstatus { margin: 0 0 10px; font-size: 13px; color: #cfc6e0; }
+.rcontrols { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.rcontrols .btn { min-height: 40px; background: rgba(255, 255, 255, 0.1); color: #f1ecf9; }
+.rcontrols .btn:hover { background: rgba(255, 255, 255, 0.18); }
+.rsearch { flex: 1 1 200px; min-width: 0; height: 40px; padding: 0 14px; font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 0; border-radius: 12px; }
+.rdays { margin-bottom: 6px; }
+.rsum { margin: 4px 0 8px; font-size: 13px; color: #cfc6e0; }
+.rday { margin-bottom: 14px; padding: 14px; color: var(--ink); background: var(--paper); border-radius: 14px; }
+.rday h3 { margin: 0 0 6px; font-size: 19px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.rday h3 small { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--orange-deep); }
+.rday h4 { margin: 14px 0 4px; font-size: 14px; color: #4b4259; }
+.rcount { margin-left: 8px; padding: 2px 8px; font-size: 12px; font-weight: 800; background: var(--hl); border-radius: 999px; color: var(--ink); }
+.rtable { width: 100%; border-collapse: collapse; }
+.rtable th, .rtable td { padding: 6px 4px; vertical-align: top; text-align: left; border-top: 1px solid #e7e1d7; font-size: 14px; }
+.rtable th { width: 34%; font-weight: 800; color: var(--ink); }
+.rtable th em { display: block; font-weight: 600; font-style: normal; font-size: 12px; color: var(--orange-deep); }
+.rwho, .ropen { display: inline-block; margin: 1px 12px 3px 0; }
+.rwho b, .ropen b { margin-right: 4px; color: #7a7089; }
+.ropen { padding: 0 8px; background: var(--hl); border-radius: 3px 8px 4px 9px / 8px 4px 9px 3px; font-weight: 800; }
+.rwho i { display: block; font-style: normal; font-size: 12px; color: #7a7089; }
+.u18 { margin-left: 6px; padding: 0 5px; font-style: normal; font-size: 10px; font-weight: 800; background: #ffe3b8; border-radius: 4px; }
+@media (max-width: 780px) {
+  .rtable th { width: 38%; }
+  .rtable tr { display: block; padding: 4px 0; }
+  .rtable th, .rtable td { display: block; width: auto; border-top: 0; padding: 2px 0; }
+  .rtable tr + tr { border-top: 1px solid #e7e1d7; }
+}
+@media print {
+  body { background: #fff; color: #000; }
+  #app { height: auto; max-width: none; padding: 0; display: block; }
+  .top, .booths, .strip, .tray, .toast, .rcontrols, .rdays, .rstatus, .open-head p { display: none !important; }
+  .view { overflow: visible; display: block; padding: 0; }
+  .roster { color: #000; padding: 0; }
+  .open-head h2 { margin: 0 0 8px; }
+  .rday { break-inside: auto; break-after: page; border: 1px solid #ccc; padding: 8px; margin: 0 0 8px; }
+  .rday:last-child { break-after: auto; }
+  .rtable th, .rtable td { font-size: 11px; padding: 3px 4px; }
+}
+
+.rcells { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 3px 14px; }
+.rcells .rwho, .rcells .ropen { margin: 0; }
+.rcells .ropen { justify-self: start; }

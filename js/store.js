@@ -70,6 +70,7 @@ export async function createStore({ taken, people = {} }) {
     adminSignedIn: false,
     adminError: '',
     adminClaims: 0,
+    adminPaper: Object.keys(people).length,
     get,
     isTaken,
     subscribe(fn) {
@@ -142,22 +143,37 @@ export async function createStore({ taken, people = {} }) {
       emit();
       return { ok: true };
     },
+    async importPaper(rows) {
+      const res = await fetch('api/admin/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-admin-key': adminKeyStore.get() },
+        body: JSON.stringify({ rows, replace: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Import failed');
+      return body;
+    },
     async loadAdmin() {
       if (!remote) return true;
       const key = adminKeyStore.get();
       if (!key) return false;
-      const res = await fetch('api/admin/claims', { headers: { 'x-admin-key': key }, cache: 'no-store' });
+      const res = await fetch('api/admin/roster', { headers: { 'x-admin-key': key }, cache: 'no-store' });
       if (!res.ok) {
         const info = await res.json().catch(() => ({}));
         store.adminError = info.code || `http-${res.status}`;
         return false;
       }
       store.adminError = '';
-      const { claims } = await res.json();
+      const { online, freed, paper } = await res.json();
       store.adminSignedIn = true;
-      store.adminClaims = claims.length;
+      store.adminClaims = online.length;
+      store.adminPaper = paper.length;
       const map = { ...people };
-      for (const c of claims) map[c.slot_id] = { name: c.name, phone: c.phone, email: c.email, minor: !!c.minor, source: c.source };
+      for (const p of paper) map[p.slot_id] = { name: p.name, phone: p.phone, email: p.email, source: p.src || 'paper', uncertain: !!p.uncertain, note: p.note };
+      for (const id of freed) delete map[id];
+      for (const c of online) {
+        map[c.slot_id] = { name: c.name, phone: c.phone, email: c.email, minor: !!c.minor, grade: c.grade, emergencyName: c.ec_name, emergencyPhone: c.ec_phone, school: c.school, source: 'online', at: c.at };
+      }
       adminPeople = map;
       emit();
       return true;

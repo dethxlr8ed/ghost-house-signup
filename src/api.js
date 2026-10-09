@@ -25,6 +25,10 @@ const SCHEMA = [
     minor INTEGER DEFAULT 0, grade TEXT, ec_name TEXT, ec_phone TEXT,
     school TEXT, source TEXT, at TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS paper (
+    slot_id TEXT PRIMARY KEY,
+    name TEXT, phone TEXT, email TEXT, src TEXT, uncertain INTEGER DEFAULT 0, note TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     at TEXT, action TEXT, slot_id TEXT, who TEXT, detail TEXT
@@ -57,15 +61,18 @@ async function ensureSchema(db) {
 function buildIndex(slots) {
   if (indexCache && indexFor === slots) return indexCache;
   const kid = new Map();
+  const cl = new Set();
   for (const [booth, days] of Object.entries(slots.booths)) {
     for (const [date, shifts] of Object.entries(days)) {
       shifts.forEach((sh, idx) => {
         for (const sp of sh.spots) {
+          if (sp.k === 'cl') cl.add(sp.id);
           if (sp.k === 'kid') kid.set(sp.id, { booth, date: Number(date), idx, shiftId: sh.id, label: sh.lb || null, base: sp.t === 1, n: sp.n });
         }
       });
     }
   }
+  kid.cl = cl;
   indexCache = kid;
   indexFor = slots;
   return kid;
@@ -265,6 +272,37 @@ async function adminRoutes(request, env, data, now, path) {
       await env.DB.prepare('INSERT INTO log (at, action, slot_id, who, detail) VALUES (?, ?, ?, ?, ?)').bind(at, 'admin-free', id, '', '').run();
     }
     return json({ ok: true });
+  }
+  if (path === '/api/admin/roster' && request.method === 'GET') {
+    const online = await env.DB.prepare("SELECT * FROM edits WHERE status = 'taken' ORDER BY at").all();
+    const freed = await env.DB.prepare("SELECT slot_id FROM edits WHERE status = 'free'").all();
+    const paper = await env.DB.prepare('SELECT * FROM paper').all();
+    return json({ online: online.results || [], freed: (freed.results || []).map((r) => r.slot_id), paper: paper.results || [] });
+  }
+  if (path === '/api/admin/import' && request.method === 'POST') {
+    let body;
+    try {
+      body = await readJson(request, 600000);
+    } catch {
+      return json({ error: 'That file is too large or not valid.' }, 400);
+    }
+    const index = buildIndex(data.slots);
+    const rows = Array.isArray(body.rows) ? body.rows : [];
+    if (rows.length > 3000) return json({ error: 'Too many rows.' }, 400);
+    const good = [];
+    let skipped = 0;
+    for (const r of rows) {
+      const id = String(r.slotId || '');
+      if (!(index.has(id) || index.cl.has(id)) || !clip(r.name, 80)) {
+        skipped++;
+        continue;
+      }
+      good.push(env.DB.prepare('INSERT OR REPLACE INTO paper (slot_id, name, phone, email, src, uncertain, note) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, clip(r.name, 80), clip(r.phone, 30), clip(r.email, 120), clip(r.src, 20), r.uncertain ? 1 : 0, clip(r.note, 200)));
+    }
+    if (body.replace !== false) await env.DB.prepare('DELETE FROM paper').run();
+    for (let i = 0; i < good.length; i += 50) await env.DB.batch(good.slice(i, i + 50));
+    await env.DB.prepare('INSERT INTO log (at, action, slot_id, who, detail) VALUES (?, ?, ?, ?, ?)').bind(now.toISOString(), 'import-paper', '', 'admin', `${good.length} rows, ${skipped} skipped`).run();
+    return json({ ok: true, imported: good.length, skipped });
   }
   if (path === '/api/admin/export.csv' && request.method === 'GET') {
     const index = buildIndex(data.slots);

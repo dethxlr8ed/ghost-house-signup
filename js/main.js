@@ -2,6 +2,7 @@ import './polyfill.js';
 import { BOOTHS, DAYS, boothById, loadLayout, loadPrivate, loadRelease, lockFor, fmtOpen, daysTag, shiftLabel, weekdayName, monthName } from './data.js';
 import { createStore, adminKeyStore } from './store.js';
 import { renderCalendar, renderMaster, spotView } from './calendar.js';
+import { renderRoster } from './roster.js';
 import { renderOpen, buildShiftBlock, openIds, countUnlockedOpen } from './openview.js';
 import { selection } from './select.js';
 import { openSignup, openAdminSpot, askAdminKey } from './forms.js';
@@ -24,6 +25,7 @@ let openDay = null;
 function parseRoute() {
   const h = location.hash.slice(2);
   if (h === 'open') return { view: 'open', booth: route.booth };
+  if (h === 'roster' && admin) return { view: 'roster', booth: route.booth };
   const booth = boothById(h);
   return booth ? { view: 'calendar', booth } : { view: 'master', booth: route.booth };
 }
@@ -59,6 +61,8 @@ function makeCtx() {
     onPick,
     onDay,
     onPickShift,
+    toast,
+    rerender: () => render(),
     onLocked: (lock) => toast(`${lock.week.label} opens ${fmtOpen(lock.opens)}`),
     setWeek: (k) => {
       weekFilter = k;
@@ -99,6 +103,7 @@ function renderBar() {
     }
     bar.append(a);
   };
+  if (admin) make('#/roster', 'Roster', null, 'open', route.view === 'roster');
   make('#/all', 'All games', countUnlockedOpen({ layout, store, release, now, admin }), 'open', route.view === 'master');
   for (const b of BOOTHS) make(`#/${b.id}`, b.name, boothOpenCount(b), b.board, route.view === 'calendar' && b.id === route.booth.id);
   make('#/open', 'List view', null, 'open', route.view === 'open');
@@ -140,9 +145,10 @@ function render() {
   view.append(host);
   if (route.view === 'open') renderOpen(host, ctx);
   else if (route.view === 'master') renderMaster(host, ctx);
+  else if (route.view === 'roster') renderRoster(host, ctx);
   else renderCalendar(host, ctx);
   document.body.dataset.view = route.view;
-  document.title = route.view === 'calendar' ? `${route.booth.name} · Ghost House Games` : 'All games · Ghost House Games';
+  document.title = route.view === 'roster' ? 'Roster · Ghost House Games' : route.view === 'calendar' ? `${route.booth.name} · Ghost House Games` : 'All games · Ghost House Games';
   view.scrollTop = scroll;
   renderTray();
   renderAdminBadge();
