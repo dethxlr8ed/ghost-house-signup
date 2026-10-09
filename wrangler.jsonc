@@ -14,5 +14,6 @@
       "database_id": "4f041745-508b-4df0-afb6-b4c1e8314c96"
     }
   ],
+  "keep_vars": true,
   "observability": { "enabled": true }
 }

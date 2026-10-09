@@ -298,7 +298,8 @@ export async function handle(request, env, data, now = new Date()) {
       return res;
     }
     if (path.startsWith('/api/admin/')) {
-      if (!(await isAdmin(request, env))) return json({ error: 'Unauthorized.' }, 401);
+      if (!env.ADMIN_KEY) return json({ error: 'The admin key is not set on the server yet.', code: 'no-key' }, 503);
+      if (!(await isAdmin(request, env))) return json({ error: 'That key does not match.', code: 'wrong-key' }, 401);
       const res = await adminRoutes(request, env, data, now, path);
       if (request.method === 'POST') await invalidateState();
       return res;

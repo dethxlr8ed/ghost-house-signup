@@ -68,6 +68,7 @@ export async function createStore({ taken, people = {} }) {
   const store = {
     remote,
     adminSignedIn: false,
+    adminError: '',
     adminClaims: 0,
     get,
     isTaken,
@@ -146,7 +147,12 @@ export async function createStore({ taken, people = {} }) {
       const key = adminKeyStore.get();
       if (!key) return false;
       const res = await fetch('api/admin/claims', { headers: { 'x-admin-key': key }, cache: 'no-store' });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        const info = await res.json().catch(() => ({}));
+        store.adminError = info.code || `http-${res.status}`;
+        return false;
+      }
+      store.adminError = '';
       const { claims } = await res.json();
       store.adminSignedIn = true;
       store.adminClaims = claims.length;

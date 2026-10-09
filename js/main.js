@@ -297,7 +297,8 @@ async function adminLogin() {
     }
     if (await store.loadAdmin()) return;
     adminKeyStore.set('');
-    toast('That key did not work');
+    toast(store.adminError === 'no-key' ? 'The admin key is not set on the server yet' : 'That key does not match');
+    if (store.adminError === 'no-key') return;
   }
 }
 
