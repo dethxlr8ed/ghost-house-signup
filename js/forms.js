@@ -117,14 +117,15 @@ export function openSignup(ctx) {
 
     const liab = el('div', 'liab');
     liab.append(el('b', '', 'Volunteers under 18 need a signed liability form.'));
+    liab.append(el('span', '', 'Download it, have a parent or guardian fill it in and sign it, and bring it to your first shift.'));
     if (CONFIG.liabilityUrl) {
-      const a = el('a', 'btn ghost', 'Open the liability form');
+      const a = el('a', 'btn ghost', 'Download the liability form (PDF)');
       a.href = CONFIG.liabilityUrl;
       a.target = '_blank';
       a.rel = 'noopener';
       liab.append(a);
     } else {
-      liab.append(el('span', '', 'The form link will be added here soon. We will also send it to you.'));
+      liab.append(el('span', '', 'The form link will be added here soon.'));
     }
     const ack = el('label', 'ack');
     const box = el('input');
@@ -224,8 +225,9 @@ function showResult(ctx, dlg, form, person, done, lost) {
   if (person.minor) {
     const liab = el('div', 'liab');
     liab.append(el('b', '', 'Reminder: volunteers under 18 need a signed liability form.'));
+    liab.append(el('span', '', 'Have a parent or guardian fill it in and sign it, and bring it to your first shift.'));
     if (CONFIG.liabilityUrl) {
-      const a = el('a', 'btn ghost', 'Open the liability form');
+      const a = el('a', 'btn ghost', 'Download the liability form (PDF)');
       a.href = CONFIG.liabilityUrl;
       a.target = '_blank';
       a.rel = 'noopener';
@@ -249,6 +251,40 @@ function showResult(ctx, dlg, form, person, done, lost) {
   close.addEventListener('click', () => dlg.close());
   actions.append(close);
   form.append(actions);
+}
+
+export function askAdminKey() {
+  return new Promise((resolve) => {
+    const dlg = document.querySelector('#spot');
+    const form = document.querySelector('#spot-form');
+    form.dataset.mode = 'admin';
+    form.replaceChildren();
+    form.append(el('h3', '', 'Admin sign in'));
+    const f = field('Admin key', 'key', { type: 'password', required: true, auto: 'current-password' });
+    form.append(f);
+    const actions = el('div', 'actions');
+    const cancel = button('Cancel', 'btn ghost');
+    actions.append(cancel, button('Sign in', 'btn primary', 'submit'));
+    form.append(actions);
+    let settled = false;
+    const onClose = () => finish(null);
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      dlg.removeEventListener('close', onClose);
+      form.onsubmit = null;
+      if (dlg.open) dlg.close();
+      resolve(value);
+    };
+    dlg.addEventListener('close', onClose);
+    cancel.addEventListener('click', () => finish(null));
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      finish(new FormData(form).get('key'));
+    };
+    dlg.showModal();
+    f.querySelector('input').focus();
+  });
 }
 
 export function openAdminSpot(ctx, v) {

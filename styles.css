@@ -734,3 +734,21 @@ body.admin .brand p::after { content: ' · admin'; color: var(--hl); }
 .minor-title { display: block; margin-bottom: 8px; font-size: 13px; color: #4b4259; }
 
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.admin-badge {
+  flex: none;
+  max-width: 60%;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink);
+  background: var(--hl);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.admin-badge[hidden] { display: none; }
+.admin-badge.out { background: #ffb3a8; }
+.top { flex-wrap: wrap; }

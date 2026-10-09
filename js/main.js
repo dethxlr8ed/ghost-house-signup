@@ -3,8 +3,8 @@ import { createStore, adminKeyStore } from './store.js';
 import { renderCalendar, renderMaster, spotView } from './calendar.js';
 import { renderOpen, buildShiftBlock, openIds, countUnlockedOpen } from './openview.js';
 import { selection } from './select.js';
-import { openSignup, openAdminSpot } from './forms.js';
-import { shareLink } from './util.js';
+import { openSignup, openAdminSpot, askAdminKey } from './forms.js';
+import { shareLink, downloadText } from './util.js';
 
 const params = new URLSearchParams(location.search);
 const admin = params.has('admin');
@@ -144,6 +144,7 @@ function render() {
   document.title = route.view === 'calendar' ? `${route.booth.name} · Ghost House Games` : 'All games · Ghost House Games';
   view.scrollTop = scroll;
   renderTray();
+  renderAdminBadge();
   if (openDay) renderDaySheet();
 }
 
@@ -259,12 +260,39 @@ window.addEventListener('hashchange', () => {
 });
 compactMq.addEventListener('change', render);
 
+function renderAdminBadge() {
+  const badge = $('#admin-badge');
+  badge.hidden = !admin;
+  if (!admin) return;
+  badge.classList.toggle('out', store.remote && !store.adminSignedIn);
+  if (!store.remote) badge.textContent = 'ADMIN · test mode on this device';
+  else if (!store.adminSignedIn) badge.textContent = 'ADMIN · tap to sign in';
+  else badge.textContent = `ADMIN · ${store.adminClaims} online sign-up${store.adminClaims === 1 ? '' : 's'} · tap for spreadsheet`;
+}
+
+async function downloadSignups() {
+  const res = await fetch('api/admin/export.csv', { headers: { 'x-admin-key': adminKeyStore.get() }, cache: 'no-store' });
+  if (!res.ok) return toast('Could not download. Try signing in again.');
+  downloadText('ghost-house-signups.csv', await res.text(), 'text/csv');
+}
+
+$('#admin-badge').addEventListener('click', async () => {
+  if (!store.remote) return;
+  if (!store.adminSignedIn) {
+    adminKeyStore.set('');
+    await adminLogin();
+    render();
+  } else {
+    await downloadSignups();
+  }
+});
+
 async function adminLogin() {
   for (let i = 0; i < 3; i++) {
     if (!adminKeyStore.get()) {
-      const key = window.prompt('Admin key');
+      const key = await askAdminKey();
       if (!key) return;
-      adminKeyStore.set(key.trim());
+      adminKeyStore.set(String(key).trim());
     }
     if (await store.loadAdmin()) return;
     adminKeyStore.set('');
@@ -282,7 +310,6 @@ async function start() {
     for (const day of Object.values(days))
       for (const shift of day) for (const sp of shift.spots) if (sp.k === 'kid' && sp.t) taken.add(sp.id);
   store = await createStore({ taken, people });
-  if (admin && store.remote) await adminLogin();
   store.subscribe(render);
   selection.subscribe(render);
   const poll = () => document.visibilityState === 'visible' && store.refresh();
@@ -291,6 +318,7 @@ async function start() {
   window.addEventListener('focus', poll);
   route = parseRoute();
   render();
+  if (admin && store.remote) adminLogin().then(render, render);
 }
 
 start();

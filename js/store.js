@@ -67,6 +67,8 @@ export async function createStore({ taken, people = {} }) {
 
   const store = {
     remote,
+    adminSignedIn: false,
+    adminClaims: 0,
     get,
     isTaken,
     subscribe(fn) {
@@ -146,6 +148,8 @@ export async function createStore({ taken, people = {} }) {
       const res = await fetch('api/admin/claims', { headers: { 'x-admin-key': key }, cache: 'no-store' });
       if (!res.ok) return false;
       const { claims } = await res.json();
+      store.adminSignedIn = true;
+      store.adminClaims = claims.length;
       const map = { ...people };
       for (const c of claims) map[c.slot_id] = { name: c.name, phone: c.phone, email: c.email, minor: !!c.minor, source: c.source };
       adminPeople = map;

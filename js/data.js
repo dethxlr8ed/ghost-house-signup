@@ -110,7 +110,7 @@ export async function loadPrivate() {
 }
 
 export const CONFIG = {
-  liabilityUrl: '',
+  liabilityUrl: 'assets/liability-form.pdf',
   siteName: 'Ghost House Games',
 };
 
