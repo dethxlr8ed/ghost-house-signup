@@ -167,13 +167,20 @@ export function renderRoster(root, ctx) {
     file.addEventListener('change', async () => {
       const f = file.files[0];
       if (!f) return;
+      imp.disabled = true;
       try {
         const body = JSON.parse(await f.text());
-        const res = await store.importPaper(body.rows || []);
+        const res = await store.importPaper(body.rows || [], (done, total) => {
+          imp.textContent = `Importing ${done} of ${total}...`;
+        });
         ctx.toast(`Imported ${res.imported} names${res.skipped ? `, skipped ${res.skipped}` : ''}`);
         await store.loadAdmin();
+        ctx.rerender();
       } catch (err) {
         ctx.toast(err.message || 'Import failed');
+        imp.textContent = 'Import paper roster';
+        imp.disabled = false;
+        file.value = '';
       }
     });
     controls.append(imp, file);

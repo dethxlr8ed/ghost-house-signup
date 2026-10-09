@@ -143,15 +143,41 @@ export async function createStore({ taken, people = {} }) {
       emit();
       return { ok: true };
     },
-    async importPaper(rows) {
-      const res = await fetch('api/admin/import', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-admin-key': adminKeyStore.get() },
-        body: JSON.stringify({ rows, replace: true }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Import failed');
-      return body;
+    async importPaper(rows, onProgress = () => {}) {
+      const size = 60;
+      let imported = 0;
+      let skipped = 0;
+      for (let i = 0; i < rows.length || i === 0; i += size) {
+        const chunk = rows.slice(i, i + size);
+        let lastError = null;
+        let ok = false;
+        for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+          try {
+            const res = await fetch('api/admin/import', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'x-admin-key': adminKeyStore.get() },
+              body: JSON.stringify({ rows: chunk, replace: i === 0 }),
+              signal: AbortSignal.timeout(30000),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(`Server said ${res.status}: ${body.error || 'import failed'}`);
+            imported += body.imported;
+            skipped += body.skipped;
+            ok = true;
+          } catch (err) {
+            lastError = err;
+            if (/Server said/.test(err.message)) break;
+            await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+          }
+        }
+        if (!ok) {
+          const net = lastError && !/Server said/.test(lastError.message);
+          throw new Error(net ? `Network problem after ${imported} of ${rows.length} names. Try again.` : lastError.message);
+        }
+        onProgress(Math.min(i + size, rows.length), rows.length);
+        if (!rows.length) break;
+      }
+      return { imported, skipped };
     },
     async loadAdmin() {
       if (!remote) return true;
