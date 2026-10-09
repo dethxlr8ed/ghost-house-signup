@@ -752,3 +752,14 @@ body.admin .brand p::after { content: ' · admin'; color: var(--hl); }
 .admin-badge[hidden] { display: none; }
 .admin-badge.out { background: #ffb3a8; }
 .top { flex-wrap: wrap; }
+
+dialog:not([open]) { display: none; }
+dialog.polyfill {
+  display: block;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 100;
+  box-shadow: 0 0 0 100vmax rgba(14, 8, 24, 0.66);
+}
+dialog.polyfill.sheet { margin: auto auto 0; }

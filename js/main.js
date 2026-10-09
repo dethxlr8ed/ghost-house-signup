@@ -1,3 +1,4 @@
+import './polyfill.js';
 import { BOOTHS, DAYS, boothById, loadLayout, loadPrivate, loadRelease, lockFor, fmtOpen, daysTag, shiftLabel, weekdayName, monthName } from './data.js';
 import { createStore, adminKeyStore } from './store.js';
 import { renderCalendar, renderMaster, spotView } from './calendar.js';
@@ -313,7 +314,7 @@ async function start() {
   store.subscribe(render);
   selection.subscribe(render);
   const poll = () => document.visibilityState === 'visible' && store.refresh();
-  setInterval(poll, 20000);
+  setInterval(poll, 30000);
   document.addEventListener('visibilitychange', poll);
   window.addEventListener('focus', poll);
   route = parseRoute();

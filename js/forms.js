@@ -196,7 +196,7 @@ export function openSignup(ctx) {
       const lost = items.filter((i) => !doneIds.has(i.id));
       form.dataset.mode = 'result';
       for (const item of items) ctx.selection.remove(item.id);
-      showResult(ctx, dlg, form, person, done, lost);
+      showResult(ctx, dlg, form, person, done, lost, result.locked || []);
     };
   };
 
@@ -208,7 +208,7 @@ export function openSignup(ctx) {
   if (!dlg.open) dlg.showModal();
 }
 
-function showResult(ctx, dlg, form, person, done, lost) {
+function showResult(ctx, dlg, form, person, done, lost, locked = []) {
   form.replaceChildren();
   form.onsubmit = null;
   if (done.length) {
@@ -216,11 +216,20 @@ function showResult(ctx, dlg, form, person, done, lost) {
     form.append(el('p', 'meta', `Thank you, ${person.name.split(' ')[0]}. Here is your schedule:`));
     form.append(shiftList(ctx, done, false));
   } else {
-    form.append(el('h3', '', 'Those spots were just taken'));
+    const onlyLocked = lost.length > 0 && lost.every((i) => locked.some((l) => l.id === i.id));
+    form.append(el('h3', '', onlyLocked ? 'Those shifts are not open yet' : 'Those spots were just taken'));
   }
-  if (lost.length) {
-    form.append(el('p', 'msg', 'Sorry, these could not be booked (they may have just been taken). Please pick another:'));
-    form.append(shiftList(ctx, lost, false));
+  const lockedIds = new Set(locked.map((l) => l.id));
+  const notOpen = lost.filter((i) => lockedIds.has(i.id));
+  const taken = lost.filter((i) => !lockedIds.has(i.id));
+  if (taken.length) {
+    form.append(el('p', 'msg', 'Sorry, these were just taken by someone else. Please pick another:'));
+    form.append(shiftList(ctx, taken, false));
+  }
+  if (notOpen.length) {
+    const when = new Date(locked[0].opens).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    form.append(el('p', 'msg', `These shifts are not open yet (${locked[0].week} opens ${when}):`));
+    form.append(shiftList(ctx, notOpen, false));
   }
   if (person.minor) {
     const liab = el('div', 'liab');

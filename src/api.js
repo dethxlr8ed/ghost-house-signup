@@ -115,6 +115,41 @@ async function loadState(db) {
   return { taken, free };
 }
 
+async function ownedBy(db, slotId, person) {
+  const { results } = await db.prepare('SELECT status, name, phone, email FROM edits WHERE slot_id = ?').bind(slotId).all();
+  const row = results && results[0];
+  if (!row || row.status !== 'taken') return false;
+  const sameName = String(row.name || '').trim().toLowerCase() === person.name.trim().toLowerCase();
+  const samePhone = person.phone && digits(row.phone) === digits(person.phone);
+  const sameEmail = person.email && String(row.email || '').toLowerCase() === person.email.toLowerCase();
+  return sameName && Boolean(samePhone || sameEmail);
+}
+
+const STATE_KEY = 'https://cache.ghost-house.internal/api-state';
+
+async function invalidateState() {
+  if (typeof caches === 'undefined') return;
+  try {
+    await caches.default.delete(new Request(STATE_KEY));
+  } catch {}
+}
+
+async function stateResponse(env, now) {
+  const cache = typeof caches === 'undefined' ? null : caches.default;
+  const key = new Request(STATE_KEY);
+  if (cache) {
+    const hit = await cache.match(key);
+    if (hit) return new Response(hit.body, { headers: HEADERS });
+  }
+  const body = JSON.stringify({ ...(await loadState(env.DB)), at: now.toISOString() });
+  if (cache) {
+    try {
+      await cache.put(key, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=5' } }));
+    } catch {}
+  }
+  return new Response(body, { headers: HEADERS });
+}
+
 async function sameSecret(a, b) {
   const enc = new TextEncoder();
   const [x, y] = await Promise.all([crypto.subtle.digest('SHA-256', enc.encode(a)), crypto.subtle.digest('SHA-256', enc.encode(b))]);
@@ -153,6 +188,7 @@ async function claim(request, env, data, now) {
   const free = new Set(state.free);
   const at = now.toISOString();
   const done = [];
+  const fresh = [];
   const lost = [];
   const locked = [];
   const invalid = [];
@@ -168,17 +204,26 @@ async function claim(request, env, data, now) {
       locked.push({ id, week: lock.week, opens: lock.opens });
       continue;
     }
-    if (taken.has(id) || (info.base && !free.has(id))) {
+    if (taken.has(id)) {
+      (await ownedBy(env.DB, id, checked.person) ? done : lost).push(id);
+      continue;
+    }
+    if (info.base && !free.has(id)) {
       lost.push(id);
       continue;
     }
     const res = await env.DB.prepare(CLAIM_SQL).bind(...personBinds(id, checked.person, 'online', at)).run();
-    (res.meta.changes === 1 ? done : lost).push(id);
+    if (res.meta.changes === 1) {
+      done.push(id);
+      fresh.push(id);
+    } else {
+      (await ownedBy(env.DB, id, checked.person) ? done : lost).push(id);
+    }
   }
 
-  if (done.length) {
+  if (fresh.length) {
     await env.DB.batch(
-      done.map((id) => env.DB.prepare('INSERT INTO log (at, action, slot_id, who, detail) VALUES (?, ?, ?, ?, ?)').bind(at, 'claim', id, checked.person.name, checked.person.phone || checked.person.email)),
+      fresh.map((id) => env.DB.prepare('INSERT INTO log (at, action, slot_id, who, detail) VALUES (?, ?, ?, ?, ?)').bind(at, 'claim', id, checked.person.name, checked.person.phone || checked.person.email)),
     );
   }
   return json({ ok: true, done, lost, locked, invalid });
@@ -246,11 +291,17 @@ export async function handle(request, env, data, now = new Date()) {
 
   try {
     await ensureSchema(env.DB);
-    if (path === '/api/state' && request.method === 'GET') return json({ ...(await loadState(env.DB)), at: now.toISOString() });
-    if (path === '/api/claim' && request.method === 'POST') return await claim(request, env, data, now);
+    if (path === '/api/state' && request.method === 'GET') return await stateResponse(env, now);
+    if (path === '/api/claim' && request.method === 'POST') {
+      const res = await claim(request, env, data, now);
+      await invalidateState();
+      return res;
+    }
     if (path.startsWith('/api/admin/')) {
       if (!(await isAdmin(request, env))) return json({ error: 'Unauthorized.' }, 401);
-      return await adminRoutes(request, env, data, now, path);
+      const res = await adminRoutes(request, env, data, now, path);
+      if (request.method === 'POST') await invalidateState();
+      return res;
     }
     return json({ error: 'Not found.' }, 404);
   } catch (err) {
