@@ -196,7 +196,7 @@ export function openSignup(ctx) {
       const lost = items.filter((i) => !doneIds.has(i.id));
       form.dataset.mode = 'result';
       for (const item of items) ctx.selection.remove(item.id);
-      showResult(ctx, dlg, form, person, done, lost, result.locked || []);
+      showResult(ctx, dlg, form, person, done, lost, result.locked || [], result.conflicts || []);
     };
   };
 
@@ -208,7 +208,7 @@ export function openSignup(ctx) {
   if (!dlg.open) dlg.showModal();
 }
 
-function showResult(ctx, dlg, form, person, done, lost, locked = []) {
+function showResult(ctx, dlg, form, person, done, lost, locked = [], conflicts = []) {
   form.replaceChildren();
   form.onsubmit = null;
   if (done.length) {
@@ -217,14 +217,23 @@ function showResult(ctx, dlg, form, person, done, lost, locked = []) {
     form.append(shiftList(ctx, done, false));
   } else {
     const onlyLocked = lost.length > 0 && lost.every((i) => locked.some((l) => l.id === i.id));
-    form.append(el('h3', '', onlyLocked ? 'Those shifts are not open yet' : 'Those spots were just taken'));
+    const onlyDoubled = lost.length > 0 && lost.every((i) => conflicts.some((c) => c.id === i.id));
+    form.append(el('h3', '', onlyLocked ? 'Those shifts are not open yet' : onlyDoubled ? 'You are already booked for that shift' : 'Those spots were just taken'));
   }
   const lockedIds = new Set(locked.map((l) => l.id));
+  const conflictIds = new Set(conflicts.map((c) => c.id));
+  const doubled = lost.filter((i) => conflictIds.has(i.id));
   const notOpen = lost.filter((i) => lockedIds.has(i.id));
-  const taken = lost.filter((i) => !lockedIds.has(i.id));
+  const taken = lost.filter((i) => !lockedIds.has(i.id) && !conflictIds.has(i.id));
   if (taken.length) {
     form.append(el('p', 'msg', 'Sorry, these were just taken by someone else. Please pick another:'));
     form.append(shiftList(ctx, taken, false));
+  }
+  if (doubled.length) {
+    const other = conflicts[0].with.split('_')[0];
+    const name = boothById(other)?.name || 'another game';
+    form.append(el('p', 'msg', `You already have a spot in that shift at ${name}. Please pick one game per shift (these were not booked):`));
+    form.append(shiftList(ctx, doubled, false));
   }
   if (notOpen.length) {
     const when = new Date(locked[0].opens).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });

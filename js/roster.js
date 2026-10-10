@@ -52,8 +52,26 @@ function csv(rows) {
   return lines.join('\n');
 }
 
+const norm = (s) => String(s || '').toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
+
+function findConflicts(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    if (!r.taken || r.senior || !r.person?.name) continue;
+    const n = norm(r.person.name);
+    if (!n || /canellopoulos|yost/.test(n) || n.split(' ').length < 2) continue;
+    const key = `${r.date}|${r.idx}|${n}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+  const out = [];
+  for (const list of groups.values()) if (list.length > 1) out.push(list);
+  out.sort((a, b) => a[0].date - b[0].date || a[0].idx - b[0].idx);
+  return out;
+}
+
 function personLine(r) {
-  const li = el('span', r.taken ? 'rwho' : 'ropen');
+  const li = el('span', r.taken ? (r.conflict ? 'rwho rconf' : 'rwho') : 'ropen');
   li.append(el('b', '', r.spot));
   if (!r.taken) {
     li.append(' OPEN');
@@ -139,6 +157,8 @@ export function renderRoster(root, ctx) {
   }
 
   const rows = collect(ctx);
+  const conflicts = findConflicts(rows);
+  for (const list of conflicts) for (const r of list) r.conflict = true;
   const filled = rows.filter((r) => !r.senior && r.taken).length;
   const open = rows.filter((r) => !r.senior && !r.taken).length;
   const named = rows.filter((r) => !r.senior && r.taken && r.person?.name).length;
@@ -186,6 +206,21 @@ export function renderRoster(root, ctx) {
     controls.append(imp, file);
   }
   page.append(controls);
+
+  if (conflicts.length) {
+    const box = el('details', 'rwarn');
+    const sum = el('summary', '', `${conflicts.length} possible double-booking${conflicts.length === 1 ? '' : 's'}: the same person in more than one game in the same shift`);
+    box.append(sum);
+    const ul = el('ul');
+    for (const list of conflicts) {
+      const r0 = list[0];
+      const li = el('li');
+      li.append(el('b', '', r0.person.name), ` · Oct ${r0.date} ${r0.shift} PM: `, list.map((r) => `${r.booth.name}${r.person.source === 'online' ? ' (online)' : ''}`).join(', '));
+      ul.append(li);
+    }
+    box.append(ul, el('p', 'rhint', 'Call them to pick one, then free the extra spot from the calendar (admin: tap the spot, then Free spot).'));
+    page.append(box);
+  }
 
   const chips = el('div', 'weeks rdays');
   const make = (key, label) => {

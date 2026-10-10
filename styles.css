@@ -808,3 +808,11 @@ dialog.polyfill.sheet { margin: auto auto 0; }
 .rcells { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 3px 14px; }
 .rcells .rwho, .rcells .ropen { margin: 0; }
 .rcells .ropen { justify-self: start; }
+
+.rwarn { margin: 0 0 12px; padding: 10px 12px; color: var(--ink); background: #ffe3b8; border-radius: 12px; font-size: 14px; }
+.rwarn summary { cursor: pointer; font-weight: 800; }
+.rwarn ul { margin: 8px 0 4px; padding-left: 18px; }
+.rwarn li { margin: 3px 0; }
+.rhint { margin: 6px 0 0; font-size: 12px; color: #6b5a3a; }
+.rconf { background: #ffe3b8; border-radius: 4px; padding: 0 4px; }
+.rconf::after { content: ' double-booked'; font-size: 10px; font-weight: 800; color: #c25f06; text-transform: uppercase; }

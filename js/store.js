@@ -102,7 +102,7 @@ export async function createStore({ taken, people = {} }) {
         }
         save();
         emit();
-        return { done, lost, locked: [] };
+        return { done, lost, locked: [], conflicts: [] };
       }
       const res = await fetch('api/claim', {
         method: 'POST',
@@ -115,7 +115,7 @@ export async function createStore({ taken, people = {} }) {
       for (const id of body.lost || []) srvTaken.add(id);
       emit();
       store.refresh();
-      return { done: body.done || [], lost: body.lost || [], locked: body.locked || [] };
+      return { done: body.done || [], lost: body.lost || [], locked: body.locked || [], conflicts: body.conflicts || [] };
     },
     async set(id, person) {
       if (!remote) {

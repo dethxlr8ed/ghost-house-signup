@@ -157,6 +157,27 @@ async function stateResponse(env, now) {
   return new Response(body, { headers: HEADERS });
 }
 
+const normName = (s) => String(s || '').toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
+
+async function heldElsewhere(db, info, id, person) {
+  const pattern = `%\\_2026-10-${String(info.date).padStart(2, '0')}\\_${info.shiftId}\\_%`;
+  const mine = normName(person.name);
+  const myFirst = mine.split(' ')[0];
+  const myPhone = digits(person.phone);
+  const myEmail = (person.email || '').toLowerCase();
+  const online = await db.prepare("SELECT slot_id, name, phone, email FROM edits WHERE status = 'taken' AND slot_id LIKE ? ESCAPE '\\' AND slot_id != ?").bind(pattern, id).all();
+  for (const r of online.results || []) {
+    const sameContact = (myPhone && digits(r.phone) === myPhone) || (myEmail && String(r.email || '').toLowerCase() === myEmail);
+    const rn = normName(r.name);
+    if (sameContact && (rn === mine || rn.split(' ')[0] === myFirst)) return r.slot_id;
+  }
+  if (mine.split(' ').length >= 2) {
+    const paper = await db.prepare('SELECT slot_id, name FROM paper WHERE slot_id LIKE ? ESCAPE \'\\\' AND slot_id != ?').bind(pattern, id).all();
+    for (const r of paper.results || []) if (normName(r.name) === mine) return r.slot_id;
+  }
+  return null;
+}
+
 async function sameSecret(a, b) {
   const enc = new TextEncoder();
   const [x, y] = await Promise.all([crypto.subtle.digest('SHA-256', enc.encode(a)), crypto.subtle.digest('SHA-256', enc.encode(b))]);
@@ -198,6 +219,7 @@ async function claim(request, env, data, now) {
   const fresh = [];
   const lost = [];
   const locked = [];
+  const conflicts = [];
   const invalid = [];
 
   for (const id of ids) {
@@ -219,6 +241,11 @@ async function claim(request, env, data, now) {
       lost.push(id);
       continue;
     }
+    const other = await heldElsewhere(env.DB, info, id, checked.person);
+    if (other) {
+      conflicts.push({ id, with: other });
+      continue;
+    }
     const res = await env.DB.prepare(CLAIM_SQL).bind(...personBinds(id, checked.person, 'online', at)).run();
     if (res.meta.changes === 1) {
       done.push(id);
@@ -233,7 +260,7 @@ async function claim(request, env, data, now) {
       fresh.map((id) => env.DB.prepare('INSERT INTO log (at, action, slot_id, who, detail) VALUES (?, ?, ?, ?, ?)').bind(at, 'claim', id, checked.person.name, checked.person.phone || checked.person.email)),
     );
   }
-  return json({ ok: true, done, lost, locked, invalid });
+  return json({ ok: true, done, lost, locked, conflicts, invalid });
 }
 
 function csvCell(v) {
