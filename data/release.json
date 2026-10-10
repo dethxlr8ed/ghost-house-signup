@@ -1,7 +1,25 @@
 {
   "weeks": [
-    { "label": "Week 1", "short": "Wk 1", "from": 10, "to": 17, "opens": "2026-10-07T00:00:00-07:00" },
-    { "label": "Week 2", "short": "Wk 2", "from": 18, "to": 24, "opens": "2026-10-12T09:00:00-07:00" },
-    { "label": "Week 3", "short": "Wk 3", "from": 25, "to": 31, "opens": "2026-10-19T09:00:00-07:00" }
+    {
+      "label": "Week 1",
+      "short": "Wk 1",
+      "from": 10,
+      "to": 17,
+      "opens": "2026-10-09T00:00:00-07:00"
+    },
+    {
+      "label": "Week 2",
+      "short": "Wk 2",
+      "from": 18,
+      "to": 24,
+      "opens": "2026-10-09T00:00:00-07:00"
+    },
+    {
+      "label": "Week 3",
+      "short": "Wk 3",
+      "from": 25,
+      "to": 31,
+      "opens": "2026-10-09T00:00:00-07:00"
+    }
   ]
 }
