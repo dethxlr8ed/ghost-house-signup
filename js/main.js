@@ -1,5 +1,5 @@
 import './polyfill.js';
-import { BOOTHS, DAYS, boothById, loadLayout, loadPrivate, loadRelease, lockFor, fmtOpen, daysTag, shiftLabel, weekdayName, monthName } from './data.js';
+import { BOOTHS, DAYS, runtime, boothById, loadLayout, loadPrivate, loadRelease, lockFor, fmtOpen, daysTag, shiftLabel, weekdayName, monthName } from './data.js';
 import { createStore, adminKeyStore } from './store.js';
 import { renderCalendar, renderMaster, spotView } from './calendar.js';
 import { renderRoster } from './roster.js';
@@ -43,7 +43,7 @@ function toast(msg) {
 function boothOpenCount(b) {
   let n = 0;
   for (const day of DAYS) {
-    if (lockFor(release, day.date, now, admin)) continue;
+    if (!runtime.frozen && lockFor(release, day.date, now, admin)) continue;
     day.shifts.forEach((_, i) => (n += openIds({ layout, store }, b.id, day.date, i).length));
   }
   return n;
@@ -63,7 +63,7 @@ function makeCtx() {
     onPickShift,
     toast,
     rerender: () => render(),
-    onLocked: (lock) => toast(`${lock.week.label} opens ${fmtOpen(lock.opens)}`),
+    onLocked: (lock) => toast(lock.frozen ? 'Online sign-up is closed right now' : `${lock.week.label} opens ${fmtOpen(lock.opens)}`),
     setWeek: (k) => {
       weekFilter = k;
       render();
@@ -73,12 +73,13 @@ function makeCtx() {
 
 function onPick(v) {
   if (admin) return openAdminSpot(makeCtx(), v);
-  if (v.state === 'locked') return toast(`${v.lock.week.label} opens ${fmtOpen(v.lock.opens)}`);
+  if (v.state === 'locked') return toast(v.lock.frozen ? 'Online sign-up is closed right now' : `${v.lock.week.label} opens ${fmtOpen(v.lock.opens)}`);
   const result = selection.toggle({ id: v.id, boothId: v.booth.id, date: v.day.date, idx: v.idx });
   if (result && result !== true) toast('Swapped your pick for that shift.');
 }
 
 function onPickShift({ booth, day, idx, ids, picked }) {
+  if (runtime.frozen && !admin) return toast('Online sign-up is closed right now');
   if (picked) return selection.remove(picked);
   const result = selection.toggle({ id: ids[0], boothId: booth.id, date: day.date, idx });
   if (result && result !== true) toast('Swapped your pick for that shift.');
@@ -116,7 +117,13 @@ function renderStrip() {
   strip.replaceChildren();
   const weeks = document.createElement('div');
   weeks.className = 'strip-weeks';
-  for (const w of release.weeks) {
+  if (runtime.frozen && !admin) {
+    const pill = document.createElement('span');
+    pill.className = 'pill lock';
+    pill.textContent = 'Online sign-up closed';
+    weeks.append(pill);
+  }
+  for (const w of runtime.frozen && !admin ? [] : release.weeks) {
     const lock = lockFor(release, w.from, now, admin);
     const pill = document.createElement('span');
     pill.className = `pill${lock ? ' lock' : ''}`;
@@ -151,6 +158,7 @@ function render() {
   document.title = route.view === 'roster' ? 'Roster · Ghost House Games' : route.view === 'calendar' ? `${route.booth.name} · Ghost House Games` : 'All games · Ghost House Games';
   view.scrollTop = scroll;
   renderTray();
+  renderNotice();
   renderAdminBadge();
   if (openDay) renderDaySheet();
 }
@@ -158,7 +166,7 @@ function render() {
 function renderTray() {
   const n = selection.size();
   const tray = $('#tray');
-  tray.hidden = n === 0 || admin;
+  tray.hidden = n === 0 || admin || runtime.frozen;
   $('#tray-text').textContent = n === 1 ? '1 shift selected' : `${n} shifts selected`;
 }
 
@@ -180,7 +188,9 @@ function renderDaySheet() {
   if (lock) {
     const n = document.createElement('p');
     n.className = 'sheet-lock';
-    n.textContent = `${lock.week.label} opens ${fmtOpen(lock.opens)}. You can see what is taken but cannot sign up yet.`;
+    n.textContent = lock.frozen
+      ? 'Online sign-up is closed right now. You can still see what is open and taken.'
+      : `${lock.week.label} opens ${fmtOpen(lock.opens)}. You can see what is taken but cannot sign up yet.`;
     body.append(n);
   }
   if (route.view !== 'calendar') {
@@ -266,6 +276,22 @@ window.addEventListener('hashchange', () => {
   render();
 });
 compactMq.addEventListener('change', render);
+
+function renderNotice() {
+  const box = $('#notice');
+  const show = runtime.frozen && !admin;
+  box.hidden = !show;
+  if (show) {
+    box.replaceChildren();
+    const b = document.createElement('b');
+    b.textContent = 'Online sign-up is closed for now. ';
+    box.append(b, 'You can still look around. Questions? Email Alicia: ');
+    const a = document.createElement('a');
+    a.href = 'mailto:alicia_b_marin@hotmail.com';
+    a.textContent = 'alicia_b_marin@hotmail.com';
+    box.append(a);
+  }
+}
 
 function renderAdminBadge() {
   const badge = $('#admin-badge');

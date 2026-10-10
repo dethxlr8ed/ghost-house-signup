@@ -29,6 +29,7 @@ const SCHEMA = [
     slot_id TEXT PRIMARY KEY,
     name TEXT, phone TEXT, email TEXT, src TEXT, uncertain INTEGER DEFAULT 0, note TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`,
   `CREATE TABLE IF NOT EXISTS log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     at TEXT, action TEXT, slot_id TEXT, who TEXT, detail TEXT
@@ -141,14 +142,20 @@ async function invalidateState() {
   } catch {}
 }
 
-async function stateResponse(env, now) {
+async function bookingsOpen(env, data) {
+  const { results } = await env.DB.prepare("SELECT value FROM settings WHERE key = 'bookings_open'").all();
+  if (results && results[0]) return results[0].value === '1';
+  return data.release.bookingsOpen !== false;
+}
+
+async function stateResponse(env, data, now) {
   const cache = typeof caches === 'undefined' ? null : caches.default;
   const key = new Request(STATE_KEY);
   if (cache) {
     const hit = await cache.match(key);
     if (hit) return new Response(hit.body, { headers: HEADERS });
   }
-  const body = JSON.stringify({ ...(await loadState(env.DB)), at: now.toISOString() });
+  const body = JSON.stringify({ ...(await loadState(env.DB)), frozen: !(await bookingsOpen(env, data)), at: now.toISOString() });
   if (cache) {
     try {
       await cache.put(key, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=5' } }));
@@ -198,6 +205,7 @@ function personBinds(slotId, person, source, at) {
 }
 
 async function claim(request, env, data, now) {
+  if (!(await bookingsOpen(env, data))) return json({ error: 'Online sign-up is closed right now. You can still look around.', code: 'frozen' }, 423);
   let body;
   try {
     body = await readJson(request);
@@ -300,6 +308,18 @@ async function adminRoutes(request, env, data, now, path) {
     }
     return json({ ok: true });
   }
+  if (path === '/api/admin/freeze' && request.method === 'POST') {
+    let body;
+    try {
+      body = await readJson(request);
+    } catch {
+      return json({ error: 'Bad request.' }, 400);
+    }
+    const open = body.open === true;
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('bookings_open', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(open ? '1' : '0').run();
+    await env.DB.prepare('INSERT INTO log (at, action, slot_id, who, detail) VALUES (?, ?, ?, ?, ?)').bind(now.toISOString(), open ? 'reopen' : 'freeze', '', 'admin', '').run();
+    return json({ ok: true, frozen: !open });
+  }
   if (path === '/api/admin/roster' && request.method === 'GET') {
     const online = await env.DB.prepare("SELECT * FROM edits WHERE status = 'taken' ORDER BY at").all();
     const freed = await env.DB.prepare("SELECT slot_id FROM edits WHERE status = 'free'").all();
@@ -356,7 +376,7 @@ export async function handle(request, env, data, now = new Date()) {
 
   try {
     await ensureSchema(env.DB);
-    if (path === '/api/state' && request.method === 'GET') return await stateResponse(env, now);
+    if (path === '/api/state' && request.method === 'GET') return await stateResponse(env, data, now);
     if (path === '/api/claim' && request.method === 'POST') {
       const res = await claim(request, env, data, now);
       await invalidateState();

@@ -816,3 +816,11 @@ dialog.polyfill.sheet { margin: auto auto 0; }
 .rhint { margin: 6px 0 0; font-size: 12px; color: #6b5a3a; }
 .rconf { background: #ffe3b8; border-radius: 4px; padding: 0 4px; }
 .rconf::after { content: ' double-booked'; font-size: 10px; font-weight: 800; color: #c25f06; text-transform: uppercase; }
+
+.notice { flex: none; margin: 0 0 8px; padding: 10px 14px; font-size: 14px; color: var(--ink); background: #ffe3b8; border-radius: 12px; }
+.notice[hidden] { display: none; }
+.notice a { color: var(--ink); font-weight: 800; }
+.rfreeze { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.rfreeze.open { background: var(--hl); }
+.rfreeze.closed { background: #ffb3a8; }
+.rfreeze .btn { min-height: 38px; background: rgba(27, 20, 38, 0.12); color: var(--ink); }

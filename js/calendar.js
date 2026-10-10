@@ -58,7 +58,7 @@ function spotRow(v, onPick) {
   const who = v.admin ? v.person?.name : null;
   if (v.state === 'open') btn.append(el('span', 'spot-cta', 'Tap to sign up'));
   else if (v.state === 'selected') btn.append(el('span', 'spot-cta', 'Selected'));
-  else if (v.state === 'locked') btn.append(el('span', 'spot-cta', 'Opens soon'));
+  else if (v.state === 'locked') btn.append(el('span', 'spot-cta', v.lock?.frozen ? 'Closed' : 'Opens soon'));
   else if (v.state === 'taken') btn.append(el('span', 'spot-name', who || 'Taken'));
   else if (who) btn.append(el('span', 'spot-name', who));
   row.append(btn);
@@ -124,7 +124,7 @@ function masterCell(ctx, day) {
   day.shifts.forEach((shift, idx) => {
     const perBooth = BOOTHS.map((b) => openIds(ctx, b.id, day.date, idx).length);
     const total = perBooth.reduce((a, n) => a + n, 0);
-    const sh = el('div', `mshift h${heat(total)}${lock ? ' soon' : ''}`);
+    const sh = el('div', `mshift h${heat(total)}${lock && !lock.frozen ? ' soon' : ''}`);
     const top = el('div', 'mshift-top');
     top.append(el('span', 'mtime', shift.label.split(' ')[0]), el('b', 'mcount', total));
     sh.append(top);
@@ -138,7 +138,7 @@ function masterCell(ctx, day) {
     box.append(sh);
   });
   if (day.between.length || day.bottom.length) box.append(el('i', 'flag'));
-  if (lock) box.append(el('i', 'lockmark'));
+  if (lock && !lock.frozen) box.append(el('i', 'lockmark'));
   cell.append(box);
   cell.tabIndex = 0;
   cell.setAttribute('role', 'button');
@@ -182,7 +182,7 @@ function dayCell(ctx, day) {
   mini.append(el('b', 'num', day.date));
   day.shifts.forEach((_, i) => mini.append(miniShift(ctx, day, i, lock)));
   if (day.between.length || day.bottom.length) mini.append(el('i', 'flag'));
-  if (lock) mini.append(el('i', 'lockmark'));
+  if (lock && !lock.frozen) mini.append(el('i', 'lockmark'));
 
   cell.append(full, mini);
   cell.tabIndex = 0;

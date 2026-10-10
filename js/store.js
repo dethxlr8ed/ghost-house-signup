@@ -1,3 +1,5 @@
+import { runtime } from './data.js';
+
 const KEY = 'ghg2026.edits.v1';
 const ADMIN_KEY_STORAGE = 'ghg2026.adminKey';
 
@@ -44,6 +46,7 @@ export async function createStore({ taken, people = {} }) {
   let srvTaken = new Set(initial?.taken || []);
   let srvFree = new Set(initial?.free || []);
   let adminPeople = people;
+  runtime.frozen = !!initial?.frozen;
 
   const save = () => {
     if (remote) return;
@@ -83,7 +86,9 @@ export async function createStore({ taken, people = {} }) {
       if (!state) return;
       const t = new Set(state.taken);
       const f = new Set(state.free);
-      if (sameSet(t, srvTaken) && sameSet(f, srvFree)) return;
+      const frozenChanged = !!state.frozen !== runtime.frozen;
+      runtime.frozen = !!state.frozen;
+      if (sameSet(t, srvTaken) && sameSet(f, srvFree) && !frozenChanged) return;
       srvTaken = t;
       srvFree = f;
       emit();
@@ -110,6 +115,10 @@ export async function createStore({ taken, people = {} }) {
         body: JSON.stringify({ items: ids, person }),
       });
       const body = await res.json().catch(() => ({}));
+      if (res.status === 423) {
+        runtime.frozen = true;
+        emit();
+      }
       if (!res.ok) throw new Error(body.error || 'Could not reach the server. Please try again.');
       for (const id of body.done || []) srvTaken.add(id);
       for (const id of body.lost || []) srvTaken.add(id);
@@ -142,6 +151,19 @@ export async function createStore({ taken, people = {} }) {
       }
       emit();
       return { ok: true };
+    },
+    get frozen() {
+      return runtime.frozen;
+    },
+    async setBookingsOpen(open) {
+      const res = await fetch('api/admin/freeze', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-admin-key': adminKeyStore.get() },
+        body: JSON.stringify({ open }),
+      });
+      if (!res.ok) throw new Error('Could not change sign-up status');
+      runtime.frozen = !open;
+      emit();
     },
     async importPaper(rows, onProgress = () => {}) {
       const size = 60;

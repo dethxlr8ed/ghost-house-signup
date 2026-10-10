@@ -121,9 +121,12 @@ export async function loadRelease() {
 
 export const weekFor = (release, date) => release.weeks.find((w) => date >= w.from && date <= w.to);
 
+export const runtime = { frozen: false };
+
 export function lockFor(release, date, now, admin) {
   const week = weekFor(release, date);
   if (!week || admin) return null;
+  if (runtime.frozen) return { week, opens: null, frozen: true };
   const opens = new Date(week.opens);
   return now >= opens ? null : { week, opens };
 }

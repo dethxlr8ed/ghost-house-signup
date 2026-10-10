@@ -1,4 +1,4 @@
-import { DAYS, BOOTHS, WEEK_ROWS, lockFor, fmtOpen, shiftLabel, weekFor, weekdayName, monthName } from './data.js';
+import { DAYS, BOOTHS, WEEK_ROWS, runtime, lockFor, fmtOpen, shiftLabel, weekFor, weekdayName, monthName } from './data.js';
 import { copyText } from './util.js';
 
 function el(tag, cls, text) {
@@ -27,7 +27,7 @@ export function countOpen(ctx, from, to) {
 export function countUnlockedOpen(ctx) {
   let n = 0;
   for (const w of ctx.release.weeks) {
-    if (!lockFor(ctx.release, w.from, ctx.now, ctx.admin)) n += countOpen(ctx, w.from, w.to);
+    if (runtime.frozen || !lockFor(ctx.release, w.from, ctx.now, ctx.admin)) n += countOpen(ctx, w.from, w.to);
   }
   return n;
 }
@@ -75,7 +75,7 @@ function weekChips(ctx) {
   make('all', 'All weeks');
   for (const w of ctx.release.weeks) {
     const locked = lockFor(ctx.release, w.from, ctx.now, ctx.admin);
-    make(String(w.from), `${w.label}${locked ? ' (soon)' : ''}`);
+    make(String(w.from), `${w.label}${locked && !locked.frozen ? ' (soon)' : ''}`);
   }
   return wrap;
 }
@@ -100,7 +100,7 @@ export function buildShiftBlock(ctx, day, idx, { lock = null, showFull = false }
     btn.type = 'button';
     btn.append(el('span', 'oname', it.booth.name));
     if (it.label !== shift.label) btn.append(el('span', 'otime', `${it.label} PM`));
-    btn.append(el('span', 'ocount', lock ? `${it.ids.length} soon` : picked ? 'Selected' : `${it.ids.length} open`));
+    btn.append(el('span', 'ocount', lock ? (lock.frozen ? `${it.ids.length} open` : `${it.ids.length} soon`) : picked ? 'Selected' : `${it.ids.length} open`));
     btn.addEventListener('click', () => (lock ? ctx.onLocked(lock) : ctx.onPickShift({ booth: it.booth, day, idx, ids: it.ids, picked })));
     li.append(btn);
     list.append(li);
@@ -125,7 +125,7 @@ export function renderOpen(root, ctx) {
     const week = weekFor(ctx.release, day.date);
     if (ctx.weekFilter !== 'all' && String(week.from) !== ctx.weekFilter) continue;
     const lock = lockFor(ctx.release, day.date, ctx.now, ctx.admin);
-    if (lock) {
+    if (lock && !lock.frozen) {
       if (!lockedShown.has(week.from)) {
         lockedShown.add(week.from);
         const card = el('article', 'olock');
@@ -136,7 +136,7 @@ export function renderOpen(root, ctx) {
       continue;
     }
 
-    const blocks = day.shifts.map((_, idx) => buildShiftBlock(ctx, day, idx)).filter(Boolean);
+    const blocks = day.shifts.map((_, idx) => buildShiftBlock(ctx, day, idx, { lock: lock && lock.frozen ? lock : null })).filter(Boolean);
     if (!blocks.length) continue;
     shown++;
 

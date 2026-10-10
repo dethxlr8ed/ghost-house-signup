@@ -207,6 +207,25 @@ export function renderRoster(root, ctx) {
   }
   page.append(controls);
 
+  if (store.remote) {
+    const sw = el('div', `rfreeze ${store.frozen ? 'closed' : 'open'}`);
+    sw.append(el('span', '', store.frozen ? 'Online sign-up is CLOSED. People can look around but not book.' : 'Online sign-up is OPEN.'));
+    const toggle = el('button', 'btn ghost', store.frozen ? 'Reopen sign-ups' : 'Close sign-ups');
+    toggle.type = 'button';
+    toggle.addEventListener('click', async () => {
+      toggle.disabled = true;
+      try {
+        await store.setBookingsOpen(store.frozen);
+        ctx.toast(store.frozen ? 'Sign-up is now closed' : 'Sign-up is now open');
+      } catch (err) {
+        ctx.toast(err.message || 'Could not change it');
+        toggle.disabled = false;
+      }
+    });
+    sw.append(toggle);
+    page.append(sw);
+  }
+
   if (conflicts.length) {
     const box = el('details', 'rwarn');
     const sum = el('summary', '', `${conflicts.length} possible double-booking${conflicts.length === 1 ? '' : 's'}: the same person in more than one game in the same shift`);
